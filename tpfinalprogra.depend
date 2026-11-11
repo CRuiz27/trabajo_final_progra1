@@ -1,0 +1,13 @@
+# depslib dependency file v1.0
+1791232015 source:c:\users\gc\onedrive\desktop\cande facu\progra\tpfinalprogra\pila.c
+	<stdio.h>
+	"pila.h"
+
+1791232020 c:\users\gc\onedrive\desktop\cande facu\progra\tpfinalprogra\pila.h
+
+1794434567 source:c:\users\gc\onedrive\desktop\cande facu\progra\tpfinalprogra\main.c
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	"pila.h"
+
