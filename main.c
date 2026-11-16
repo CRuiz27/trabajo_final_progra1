@@ -8,6 +8,8 @@ typedef struct
     char nombre[20];
     char apellido[20];
     int aniosexperiencia;
+    int tesoroEncontrado;
+    int activo;
 } Capitan;
 
 typedef struct
@@ -32,16 +34,25 @@ typedef struct
 typedef struct
 {
     int cantBarcos;
+    int cantTesorosTotales;
     int idBarcoGanador;
     Capitan capitanGanador;
     int puntaje;
 } Historico;
 
 void leertexto(char texto[], int dimension);
-int cantidadbarcos();
-Barco cargarbarco();
-void arreglodebarcos(Barco barcos[], int cant);
-void mostrartodoslosbarcos();
+int cantidadBarcos();
+
+void menu(Barco barquito[], Pila historial, int cant);
+int subMenu(Barco barquito[],Pila historial, int cant);
+
+Barco cargarBarco();
+void arregloDeBarcos(Barco barcos[], int cant);
+void cargarTesoro(Barco *barquito, Pila *historial, int ronda);
+
+void mostrarTodosLosBarcos();
+void mostrarBarcoEspecifico(int idAux);
+int posicionBarco(Barco barquitos[], int id, int cant); // no se esta usando creo
 
 void modificaCapitan(Capitan *capitan);
 void modificarDatos();
@@ -56,30 +67,45 @@ void guardarHistorico(Barco barquitos[], int cantBarcos, int posGanador);
 void muestraHistorico(Historico historico);
 void consultarDatosHistoricos();
 
-int submenu(Barco barquito[],Pila *historial, int cant);
-int menu(Barco barquito[], Pila *historial, int cant);
-
-void cargartesoro(Barco *barquito, Pila *historial, int ronda);
-void iniciarPartida(Barco barquitos[], int cant, Pila *historial);
-void mostrarhistorial(Pila *historial);
+int cuentaTesoros();
+void guardarTesoro(Tesoro tesoro);
+void iniciarPartida(Barco barquitos[], int cant, Pila historial);
+void mostrarHistorial(Pila historial);
 
 void listarCapitanesAlfabeticamente(Barco barquitos[], int cant);
 void ordenarCapitanesSeleccion(Barco copia[], int cant);
 void mostrarCapitanes(Barco barquitos[], int cant);
+void guardarCapitan(Capitan capitan);
+void modificarCapitanArchivo(Capitan capitan);
+void marcarCapitanesConTesoros(Barco barquitos[], int cant);
+void capitanesConTesoros();
 void mostrarClasificacion(Barco barquitos[], int cant);
 void ordenarPorPuntaje(Barco barquitos[], int cant);
+
+void gestionarCapitanes(Barco barquitos[], int cant);
 
 int main()
 {
     Pila historial;
     inicpila(&historial);
     int cant;
-    printf("\n***     BIENVENIDO    ***\n");
-    cant=cantidadbarcos();
+
+    printf("\n -- BIENVENIDO AL SISTEMA DE COMPETENCIA DE BARCOS --\n");
+    printf("                  |    |    |\n");
+    printf("                 )_)  )_)  )_)\n");
+    printf("                )___))___))___)\\\n");
+    printf("               )____)____)_____)\\\\\n");
+    printf("             _____|____|____|____\\\\\\__\n");
+    printf("     ________|  PIRATAS DEL MAR   |______\n");
+    printf("     \\                                   /\n");
+    printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+    printf("          ~     ~       ~      ~\n");
+
+    cant = cantidadBarcos();
     Barco *barcos = malloc(sizeof(Barco)*cant);
     while(1)
     {
-        menu(barcos, &historial,cant);
+        menu(barcos, historial,cant);
     }
     //poner en un while el menu hasta que ingrese salir
     free(barcos);
@@ -92,17 +118,17 @@ void leertexto(char texto[], int dimension)
     texto[strcspn(texto, "\n")]= '\0';
 }
 
-int cantidadbarcos()
+int cantidadBarcos()
 {
-    int cant=0;
-    int aux=0;
-    while (cant<2)
+    int cant = 0;
+    int aux = 0;
+    while (cant < 2)
     {
-        printf("Ingrese la cantidad de barcos que desean jugar: \n");
-        scanf(" %d", &aux);
-        if (aux>=2 && aux<=5)
+        printf("\n Ingrese la cantidad de barcos que desean jugar: ");
+        scanf("%d", &aux);
+        if (aux >= 2 && aux <= 5)
         {
-            cant=aux;
+            cant = aux;
         }
         else
         {
@@ -112,37 +138,163 @@ int cantidadbarcos()
     return cant;
 }
 
-Barco cargarbarco()
+void menu(Barco barquito[], Pila historial, int cant)
+{
+    int opcion;
+    printf("\n Ingrese una opcion \n");
+
+    printf("1. Iniciar nueva competencia. \n");
+    printf("2. Ver registros historicos. \n");
+    printf("3. Salir. \n");
+
+    printf("\n Opcion: ");
+    scanf("%d", &opcion);
+
+    switch (opcion)
+    {
+    case 1:
+
+        subMenu(barquito, historial, cant);
+        break;
+
+    case 2:
+
+        consultarDatosHistoricos();
+        break;
+
+    case 3:
+
+        printf("Saliendo... ");
+        exit(0);
+        break;
+    }
+}
+
+int subMenu(Barco barquitos[], Pila historial, int cant)
+{
+    int opcion;
+    int posGanador;
+    int id;
+
+    printf("\n Ingrese una opcion \n");
+
+    printf("1. Iniciar partida. \n");
+    printf("2. Modificar datos. \n");
+    printf("3. Ver informacion de participantes. \n");
+    printf("4. Ver informacion especifica. \n");
+    printf("5. Dar de baja un barco participante. \n");
+    printf("6. Dar de alta un barco participante. \n");
+    printf("7: Ver capitanes por orden alfabetico. \n");
+    printf("8. Salir \n");
+
+    printf("\n Opcion: ");
+    scanf("%d", &opcion);
+
+    switch (opcion)
+    {
+    case 1:
+
+        arregloDeBarcos(barquitos, cant);
+        iniciarPartida(barquitos, cant, historial);
+        posGanador = maxPuntaje(barquitos, cant);
+
+        guardarCompetencia(barquitos, cant);
+        guardarHistorico(barquitos, cant, posGanador);      //problema: si despues de la competencia queremos modificar datos, el historico podría
+        //seguir conservando algun dato viejo (ej: si se modifica nombre de capitan)
+        printf("\nGANADOR: \n");
+        mostrarBarcoEspecifico(barquitos[posGanador].id);
+
+        break;
+
+    case 2:
+
+        modificarDatos();
+        break;
+
+    case 3:
+
+        mostrarTodosLosBarcos();
+        break;
+
+    case 4:
+
+        printf("Ingrese el id del barco que desea ver: ");
+        scanf("%d", &id);
+        mostrarBarcoEspecifico(id);
+
+        break;
+
+    case 5:
+
+        printf("Ingrese el id del barco que desea dar de baja: ");
+        scanf(" %d", &id);
+        darDeBaja(id);
+
+        break;
+
+    case 6:
+
+        printf("Ingrese el id del barco que desea dar de alta: ");
+        scanf(" %d", &id);
+        darAlta(id);
+
+        break;
+
+    case 7:
+        marcarCapitanesConTesoros(barquitos, cant);
+        listarCapitanesAlfabeticamente(barquitos, cant);
+
+        break;
+
+    case 8:
+
+        printf("\nSaliendo... ");
+        return 0;
+        break;
+
+    default:
+
+        printf("El valor no es valido. \n");
+        break;
+    }
+
+    return 0;
+}
+
+Barco cargarBarco()
 {
     Barco barquito;
-    printf("Ingrese el id del barco: \n");
+    printf("\nIngrese el id del barco: ");
     scanf(" %d", &barquito.id);
     getchar();
 
-    printf("Ingrese el nombre del capitan del barco: \n");
+    printf("\nIngrese el nombre del capitan del barco: ");
     leertexto(barquito.capitan.nombre, 20);
 
-    printf("Ingrese el apellido del capitan del barco: \n");
+    printf("Ingrese el apellido del capitan del barco: ");
     leertexto(barquito.capitan.apellido, 20);
 
-    printf("Ingrese los años de experiencia: \n");
-    scanf("%d",&barquito.capitan.aniosexperiencia);
+    printf("Ingrese los anios de experiencia: ");
+    scanf("%d", &barquito.capitan.aniosexperiencia);
     getchar();
 
-    printf("Ingrese la cantidad de tripulantes:\n");
-    scanf("%d",&barquito.canttripulantes);
+    printf("Ingrese la cantidad de tripulantes: ");
+    scanf("%d", &barquito.canttripulantes);
     getchar();
 
     barquito.canttesoros = 0;
     barquito.activo = 1;
     barquito.puntaje = 0;
+    barquito.capitan.tesoroEncontrado = 0; //nuevo
+
+    guardarCapitan(barquito.capitan);
 
     return barquito;
 }
 
-void arreglodebarcos(Barco barcos[], int cant)
+void arregloDeBarcos(Barco barcos[], int cant)
 {
-    printf("**Carga de barcos**\n");
+    printf("\n -- CARGA DE BARCOS -- \n");
 
     int i = 0;
     int esta;
@@ -151,7 +303,7 @@ void arreglodebarcos(Barco barcos[], int cant)
     while (i < cant)
     {
         esta = 0;
-        barquito = cargarbarco();
+        barquito = cargarBarco();
 
         for (int j = 0; j < i; j++)
         {
@@ -173,59 +325,104 @@ void arreglodebarcos(Barco barcos[], int cant)
     }
 }
 
-
-void mostrartodoslosbarcos()
+void iniciarPartida(Barco barquitos[], int cantBarcos, Pila historial)
 {
-    Barco barquito;
-    FILE *archi=fopen("barcos.dat","rb");
-    if (archi)
+    char letra;
+    int cantRondas;
+
+    printf("\n Ingrese la cantidad de rondas: ");
+    scanf("%i", &cantRondas);
+
+    while(cantRondas <= 0 || cantRondas > 5)
     {
-
-        while(fread(&barquito,sizeof(Barco),1,archi)>0)
-        {
-
-            printf("Barco n°: %d \n",barquito.id);
-            printf("Capitan del barco: %s %s \n", barquito.capitan.nombre,barquito.capitan.apellido);
-            printf("Años de experiencia del capitan: %d \n", barquito.capitan.aniosexperiencia);
-            printf("Cantidad de tripulantes: %d \n", barquito.canttripulantes);
-            printf("Cantidad de tesoros del barco: %d \n", barquito.canttesoros);
-            printf("Puntaje obtenido: %d \n", barquito.puntaje);
-
-        }
-    }
-    else
-    {
-        printf("No se pudo abrir el archivo. \n");
+        printf("Solo se permiten hasta 5 rondas. Vuelva a intentar");
+        scanf("%i", &cantRondas);
     }
 
-
-
-}
-void mostrarbarcoespecifico(int idAux)
-{
-    Barco barquito;
-    int encontrado=0;
-    FILE *archi=fopen("barcos.dat","rb");
-    if (archi)
+    for (int i = 0; i < cantRondas; i++)
     {
+        printf("\n Comienza la ronda %d \n", i+1);
 
-        while(fread(&barquito,sizeof(Barco),1,archi)>0)
+        for (int j = 0; j < cantBarcos; j++)
         {
-
-            if (barquito.id==idAux)
+            if (barquitos[j].activo == 1)
             {
-                printf("Barco n°: %d \n",barquito.id);
-                printf("Capitan del barco: %s %s \n", barquito.capitan.nombre,barquito.capitan.apellido);
+                printf("Comienza: ID %d \n", barquitos[j].id);
+                printf("\nResultado de la primera busqueda: \n");
+                printf("Se encontro algun tesoro? (s/n): "); //validacion con letra== s ?
+                scanf(" %c", &letra);
+                if (letra == 's')
+                {
+                    cargarTesoro(&barquitos[j],&historial, i+1);
+                    barquitos[j].canttesoros++;
+                }
+
+                printf("\nResultado de la segunda busqueda: \n");
+                printf("Se encontro algun tesoro? (s/n): ");
+                scanf(" %c", &letra);
+                if (letra == 's')
+                {
+                    cargarTesoro(&barquitos[j], &historial, i+1);
+                    barquitos[j].canttesoros++;
+                }
+            }
+        }
+        actualizaPuntajes(barquitos, cantBarcos, i+1);
+
+        printf("\n Desea ver el estado de la competencia (s/n): ");
+        scanf(" %c", &letra);
+        if (letra == 's')
+        {
+            printf("\n -- Clasificacion despues de la ronda %d -- \n\n", i+1);
+            mostrarClasificacion(barquitos, cantBarcos);
+        }
+
+    }
+
+    marcarCapitanesConTesoros(barquitos, cantBarcos); //nuevo
+    mostrarHistorial(historial);
+}
+
+void cargarTesoro(Barco *barquito, Pila *historial, int ronda)
+{
+    int i = barquito->canttesoros;
+
+    printf("\nIngrese el nivel del tesoro: ");
+    scanf("%d", &barquito->tesoros[i].nivel);
+
+    getchar();
+    printf("\nIngrese el material del tesoro: ");
+    leertexto(barquito->tesoros[i].material, 30);
+
+    printf("\nIngrese la cantidad de oro: ");
+    scanf("%d", &barquito->tesoros[i].cantoro);
+
+    apilar(historial, barquito->tesoros[i].nivel);
+
+    barquito->tesoros[i].ronda = ronda;
+    guardarTesoro(barquito->tesoros[i]);
+
+    barquito->capitan.tesoroEncontrado = 1; //nuevo.
+}
+
+void mostrarTodosLosBarcos()
+{
+    Barco barquito;
+    FILE *arch = fopen("Barcos.dat", "rb");
+    if (arch)
+    {
+        while (fread(&barquito, sizeof(Barco), 1, arch) > 0)
+        {
+            if (barquito.activo == 1)
+            {
+                printf("\nID del barco: %d \n", barquito.id);
+                printf("Capitan del barco: %s %s \n", barquito.capitan.nombre, barquito.capitan.apellido);
                 printf("Años de experiencia del capitan: %d \n", barquito.capitan.aniosexperiencia);
                 printf("Cantidad de tripulantes: %d \n", barquito.canttripulantes);
                 printf("Cantidad de tesoros del barco: %d \n", barquito.canttesoros);
                 printf("Puntaje obtenido: %d \n", barquito.puntaje);
-                encontrado=1;
             }
-        }
-        if(encontrado==0)
-        {
-            printf("Ese barco no existe. \n");
+
         }
     }
     else
@@ -233,11 +430,45 @@ void mostrarbarcoespecifico(int idAux)
         printf("No se pudo abrir el archivo. \n");
     }
 }
+void mostrarBarcoEspecifico(int idAux)
+{
+    Barco barquito;
+    int encontrado = 0;
+    FILE *arch = fopen("Barcos.dat", "rb");
+
+    if (arch)
+    {
+        while (fread(&barquito, sizeof(Barco), 1, arch) > 0)
+        {
+            if (barquito.activo && barquito.id == idAux)
+            {
+                printf("\nID del barco: %d \n",barquito.id);
+                printf("Capitan del barco: %s %s \n", barquito.capitan.nombre,barquito.capitan.apellido);
+                printf("Anios de experiencia del capitan: %d \n", barquito.capitan.aniosexperiencia);
+                printf("Cantidad de tripulantes: %d \n", barquito.canttripulantes);
+                printf("Cantidad de tesoros del barco: %d \n", barquito.canttesoros);
+                printf("Puntaje obtenido: %d \n", barquito.puntaje);
+                encontrado = 1;
+            }
+        }
+        if (encontrado == 0)
+        {
+            printf("Ese barco no existe. \n");
+        }
+        fclose(arch);
+    }
+    else
+    {
+        printf("No se pudo abrir el archivo. \n");
+    }
+}
+
 void modificaCapitan(Capitan *capitan)
 {
     char seguir;
     char nombre[20];
     char apellido[20];
+    int anios;
 
     printf("Desea modificar el nombre del capitan? (s/n): ");
     scanf(" %c", &seguir);
@@ -260,7 +491,7 @@ void modificaCapitan(Capitan *capitan)
 
     printf("Desea modificar el apellido del capitan? (s/n): ");
     scanf(" %c", &seguir);
-    getchar();
+
     if (seguir == 's')
     {
         printf("\n Nuevo apellido del capitan: ");
@@ -276,7 +507,23 @@ void modificaCapitan(Capitan *capitan)
         }
     }
 
-    // Aca tocaria modificar años de experiencia y arreglo de tesoros anteriores. Pero no seria mejor asociar eso al barco que al capitan?
+    printf("Desea modificar anios de experiencia del capitan? (s/n): ");
+    scanf(" %c", &seguir);
+
+    if (seguir == 's')
+    {
+        printf("Anios de experiencia del capitan: ");
+        scanf("%d", &anios);
+
+        if (anios != capitan->aniosexperiencia)
+        {
+            capitan->aniosexperiencia = anios;
+        }
+        else
+        {
+            printf("\n No se han modificado los anios de experiencia. \n");
+        }
+    }
 }
 
 int posicionBarco(Barco barquitos[], int id, int cant)
@@ -317,6 +564,7 @@ void modificarDatos()   // Modifica los datos de uno o mas barcos
                 if (seguir == 's')
                 {
                     modificaCapitan(&barquito.capitan);
+                    modificarCapitanArchivo(barquito.capitan);
                 }
 
                 printf("Desea modificar la cantidad de tripulantes? (s/n): ");
@@ -368,11 +616,12 @@ void darDeBaja(int id)    // Busco el barco por id y cuando lo encuentro, lo doy
                 barquito.activo = 0;
                 fseek(arch, sizeof(Barco)*(-1), SEEK_CUR);
                 fwrite(&barquito, sizeof(Barco), 1, arch);
-                printf("El barco fue dado de baja \n");
+                printf("\nEl barco fue dado de baja exitosamente. \n");
+                fclose(arch);
             }
         }
     }
-    fclose(arch);
+
 }
 void darAlta(int id)    // Busco el barco por id y cuando lo encuentro, lo doy de baja. Se deberia modularizar mas?
 {
@@ -387,12 +636,12 @@ void darAlta(int id)    // Busco el barco por id y cuando lo encuentro, lo doy d
     {
         while (fread(&barquito, sizeof(Barco), 1, arch) > 0)
         {
-            if (barquito.activo==0 && barquito.id == id)
+            if (barquito.activo == 0 && barquito.id == id)
             {
                 barquito.activo = 1;
                 fseek(arch, sizeof(Barco)*(-1), SEEK_CUR);
                 fwrite(&barquito, sizeof(Barco), 1, arch);
-                printf("El barco fue dado de alta \n");
+                printf("El barco fue dado de alta. \n");
             }
         }
     }
@@ -466,11 +715,13 @@ void guardarCompetencia(Barco barquitos[], int cantBarcos)    // Guarda los dato
 
 Historico cargarHistorico(Barco barquitos[], int cantBarcos, int posGanador)
 {
-    Historico historico;
+    Historico historico = {0};
 
     historico.cantBarcos = cantBarcos;
-    strcpy(historico.capitanGanador.nombre, barquitos[posGanador].capitan.nombre);
-    strcpy(historico.capitanGanador.apellido, barquitos[posGanador].capitan.apellido);
+    historico.cantTesorosTotales = cuentaTesoros();
+
+    historico.capitanGanador = barquitos[posGanador].capitan;
+
     historico.idBarcoGanador = barquitos[posGanador].id;
     historico.puntaje = barquitos[posGanador].puntaje;
 
@@ -498,6 +749,7 @@ void guardarHistorico(Barco barquitos[], int cantBarcos, int posGanador)
 void muestraHistorico(Historico historico)
 {
     printf("Cantidad de barcos: %d \n", historico.cantBarcos);
+    printf("Tesoros totales encontrados: %d \n", historico.cantTesorosTotales);
     printf("Capitan ganador: %s %s \n", historico.capitanGanador.nombre, historico.capitanGanador.apellido);
     printf("ID del barco ganador: %d \n", historico.idBarcoGanador);
     printf("Puntaje: %d \n", historico.puntaje);
@@ -526,215 +778,22 @@ void consultarDatosHistoricos()
     fclose(arch);
 }
 
-int submenu(Barco barquitos[], Pila *historial, int cant)
-{
-    int opcion;
-    printf("Ingrese una opcion: \n");
-    printf("1. Iniciar partida. \n");
-    printf("2. Modificar datos. \n");
-    printf("3. Ver informacion de participantes. \n");
-    printf("4. Ver informacion especifica. \n");
-    printf("5. Dar de baja un barco participante. \n");
-    printf("6. Dar de alta un barco participante. \n");
-    printf("7. Salir \n");
-    scanf("%d", &opcion);
-
-    switch (opcion)
-    {
-    case 1:
-        arreglodebarcos(barquitos, cant);
-        iniciarPartida(barquitos, cant, historial);
-        int posGanador = maxPuntaje(barquitos, cant);
-
-        printf("GANADOR: \n");
-        mostrarbarcoespecifico(barquitos[posGanador].id);
-
-        guardarCompetencia(barquitos, cant);
-        guardarHistorico(barquitos, cant, posGanador);
-
-        break;
-
-    case 2:
-
-        modificarDatos();
-        /* -preguntar que barco modificar (por id) (verificar que lo encuentre)
-         -preguntar por todos los campos si se quieren modificar o no
-         -modificar es/os datos
-         -preguntar si se quiere seguir modificando (otro barco)*/
-        break;
-
-    case 3:
-
-        mostrartodoslosbarcos();
-
-        break;
-
-    case 4:
-
-        printf("Ingrese el id del barco que desea ver: ");
-        int id;
-        scanf(" %d", &id);
-
-        mostrarbarcoespecifico(id);
-
-        break;
-
-    case 5:
-
-        printf("Ingrese el id del barco que desea dar de baja: ");
-        scanf(" %d", &id);
-        darDeBaja(id);
-
-        break;
-    case 6:
-
-        printf("Ingrese el id del barco que desea dar de alta: ");
-        scanf(" %d", &id);
-        darAlta(id);
-
-        break;
-    case 7:
-
-        printf("Saliendo... ");
-        return 0;
-        break;
-
-    default:
-
-        printf("El valor no es valido. \n");
-
-    }
-    return 0;
-}
-
-int menu(Barco barquito[], Pila *historial, int cant)
-{
-    int opcion;
-    printf("Ingrese una opcion \n");
-
-    printf("1. Iniciar nueva competencia. \n");
-    printf("2. Ver registros historicos. \n");
-    printf("3. Salir. ");
-    scanf("%d", &opcion);
-
-    switch (opcion)
-    {
-    case 1:
-
-        submenu(barquito, historial, cant);
-
-        break;
-
-    case 2:
-
-        consultarDatosHistoricos();
-        break;
-
-    case 3:
-
-        printf("Saliendo... ");
-        exit(0);
-        break;
-    }
-
-}
-
-
-void iniciarPartida(Barco barquitos[], int cantBarcos, Pila *historial)
-{
-    char letra;
-    int cantRondas;
-    while(!pilavacia(historial))
-    {
-        desapilar(historial);
-    }
-    printf("Ingrese la cantidad de rondas: ");
-    scanf("%i", &cantRondas);
-
-    while(cantRondas <= 0 || cantRondas > 5)
-    {
-        printf("Solo se permiten hasta 5 rondas. Vuelva a intentar");
-        scanf("%i", &cantRondas);
-    }
-
-    for (int i = 0; i < cantRondas; i++)
-    {
-        printf("Comienza la ronda %d \n", i+1);
-
-        for (int j = 0; j < cantBarcos; j++)
-        {
-            if (barquitos[j].activo == 1)
-            {
-                printf("Comienza: %d \n", barquitos[j].id);
-                printf("Resultado de la primera busqueda: \n");
-                printf("¿Se encontro algun tesoro? (s/n): "); //validacion con letra== s ?
-                scanf(" %c", &letra);
-                if (letra == 's')
-                {
-                    cargartesoro(&barquitos[j],historial, i+1);
-                    barquitos[j].canttesoros++;
-                }
-
-                printf("Resultado de la segunda busqueda: \n");
-                printf("¿Se encontro algun tesoro? (s/n): ");
-                scanf(" %c", &letra);
-                if (letra == 's')
-                {
-                    cargartesoro(&barquitos[j], historial, i+1);
-                    barquitos[j].canttesoros++;
-                }
-            }
-        }
-        actualizaPuntajes(barquitos, cantBarcos, i+1);
-
-        printf("Desea ver el estado de la competencia (s/n): ");
-        scanf(" %c", &letra);
-        if (letra == 's')
-        {
-            printf("\n*** Clasificacion despues de la ronda %d***\n", i+1);
-            mostrarClasificacion(barquitos, cantBarcos);
-        }
-
-    }
-
-    mostrarhistorial(historial);
-
-}
-void cargartesoro(Barco *barquito, Pila *historial, int ronda)
-{
-    int i = barquito->canttesoros;
-
-    printf("Ingrese el nivel del tesoro: \n");
-    scanf("%d", &barquito->tesoros[i].nivel);
-
-    getchar();
-    printf("Ingrese el material del tesoro: \n");
-    leertexto(barquito->tesoros[i].material, 30);
-
-    printf("Ingrese la cantidad de oro: \n");
-    scanf("%d", &barquito->tesoros[i].cantoro);
-
-    apilar(historial, barquito->tesoros[i].nivel);
-
-    barquito->tesoros[i].ronda = ronda;
-}
-
-void mostrarhistorial (Pila *historial) //despues de cada ronda para cada barco? lo puse al final de inciar partida por las dudas
+void mostrarHistorial(Pila historial)
 {
     Pila aux;
     inicpila(&aux);
     int dato;
-    printf("Historial de niveles de ultimos tesoros encontrados: \n");
-    while(!pilavacia(historial))
+    printf("\nHistorial de niveles de ultimos tesoros encontrados: \n");
+    while(!pilavacia(&historial))
     {
-        printf("Tesoro nivel: %d \n", tope(historial));
-        dato=desapilar(historial);
+        printf("Tesoro nivel: %d \n", tope(&historial));
+        dato=desapilar(&historial);
         apilar(&aux,dato);
     }
     while(!pilavacia(&aux))
     {
         dato=desapilar(&aux);
-        apilar(historial,dato);
+        apilar(&historial,dato);
     }
 }
 void listarCapitanesAlfabeticamente(Barco barquitos[], int cant)
@@ -747,9 +806,8 @@ void listarCapitanesAlfabeticamente(Barco barquitos[], int cant)
     }
     ordenarCapitanesSeleccion(copia, cant);
     mostrarCapitanes(copia, cant);
-
-
 }
+
 void ordenarCapitanesSeleccion(Barco copia[], int cant)
 {
     int posMenor;
@@ -767,17 +825,21 @@ void ordenarCapitanesSeleccion(Barco copia[], int cant)
             }
         }
 
-        aux=copia[i];
-        copia[i]=copia[posMenor];
-        copia[posMenor]=aux;
+        aux = copia[i];
+        copia[i] = copia[posMenor];
+        copia[posMenor] =  aux;
     }
 }
 void mostrarCapitanes(Barco barquitos[], int cant)
 {
     for (int i = 0; i < cant; i++)
     {
-        printf("Capitan: %s %s\n", barquitos[i].capitan.nombre, barquitos[i].capitan.apellido);
-        printf("Puntaje: %i", barquitos[i].puntaje);
+        if (barquitos[i].capitan.activo && barquitos[i].capitan.tesoroEncontrado == 1)
+        {
+            printf("Capitan: %s %s\n", barquitos[i].capitan.nombre, barquitos[i].capitan.apellido);
+            printf("Puntaje: %i", barquitos[i].puntaje);
+            printf("Anios de experiencia: %i", barquitos[i].capitan.aniosexperiencia);
+        }
     }
 }
 void mostrarClasificacion(Barco barquitos[], int cant)
@@ -813,9 +875,61 @@ void ordenarPorPuntaje(Barco barquitos[], int cant)
         barquitos[j+1]=aux;
     }
 }
-void guardarCapitanes(Capitan capitanes)
+
+int cuentaTesoros()
 {
-    FILE * arch = fopen("Capitanes.dat", "ab");
+    int cantTesoros = 0;
+    Tesoro tesoro;
+    FILE * arch = fopen("Tesoros.dat", "rb");
+
+    if (arch == NULL)
+    {
+        printf("\n No se ha podido abrir el archivo Tesoros.dat. \n");
+    }
+    else
+    {
+        while(fread(&tesoro, sizeof(Tesoro), 1, arch))
+        {
+            cantTesoros++;
+        }
+        fclose(arch);
+    }
+    return cantTesoros;
+}
+
+void guardarTesoro(Tesoro tesoro)
+{
+    FILE * arch = fopen("Tesoros.dat", "ab");
+
+    if (arch == NULL)
+    {
+        printf("\n No se ha podido abrir el archivo Tesoros.dat. \n");
+    }
+    else
+    {
+        fwrite(&tesoro, sizeof(Tesoro), 1, arch);
+        fclose(arch);
+    }
+}
+
+void guardarCapitan(Capitan capitan)
+{
+    FILE * arch = fopen("Capitanes.dat", "wb"); //nuevo. Cambie a wb. Para que no se repita el mismo capitan que ha participado en mas de una competencia.
+    //Que se actualice cada que se inicie une nueva competencia
+    if (arch == NULL)
+    {
+        printf("\n No se ha podido abrir el archivo Capitanes.dat. \n");
+    }
+    else
+    {
+        fwrite(&capitan, sizeof(Capitan), 1, arch);
+        fclose(arch);
+    }
+}
+void modificarCapitanArchivo(Capitan capitan) //nuevo. Puse nuevo pero creo que no cambie nada.
+{
+    FILE * arch = fopen("Capitanes.dat", "r+b");
+    Capitan aux;
 
     if (arch == NULL)
     {
@@ -823,11 +937,48 @@ void guardarCapitanes(Capitan capitanes)
     }
     else
     {
-        fwrite(&capitanes, sizeof(Capitan), 1, arch);
+        while (fread(&aux, sizeof(Capitan), 1, arch) > 0)
+        {
+            if (strcmpi(aux.nombre, capitan.nombre) == 0 && strcmpi(aux.apellido, capitan.apellido) == 0)
+            {
+                fseek(arch, -sizeof(Capitan), SEEK_CUR);
+                fwrite(&capitan, -(long)sizeof(Capitan), 1, arch);
+            }
+        }
         fclose(arch);
     }
 }
-void modificarCapitanArchivo(Capitan capitan) //para cuando modifique el nombre del capitan y se actualice en el archivo
+
+void capitanesConTesoros() //busca capitanes con tesoroEncontrado=1
+{
+    FILE * arch = fopen("Capitanes.dat", "rb");
+    Capitan aux;
+    int existe=0;
+
+    if (arch == NULL)
+    {
+        printf("\n No se ha podido abrir el archivo Capitanes.dat. \n");
+    }
+    else
+    {
+        printf("Capitanes que han encontrado tesoros: \n");
+        while(fread(&aux, sizeof(Capitan), 1, arch)>0)
+        {
+            if(aux.tesoroEncontrado == 1)
+            {
+                printf("%s %s\n", aux.nombre, aux.apellido);
+                existe = 1;
+
+            }
+        }
+        if(existe==0)
+        {
+            printf("Ningun capitan ha encontrado tesoro. \n");
+        }
+        fclose(arch);
+    }
+}
+void marcarCapitanesConTesoros(Barco barquitos[], int cant) //actualiza el archivo de los capitanes para que aparezca el tesorosEncontrado=1 si es que alguno se modifico.
 {
     FILE * arch = fopen("Capitanes.dat", "r+b");
     Capitan aux;
@@ -840,12 +991,17 @@ void modificarCapitanArchivo(Capitan capitan) //para cuando modifique el nombre 
     {
         while(fread(&aux, sizeof(Capitan), 1, arch)>0)
         {
-            if(strcmpi(aux.nombre, capitan.nombre)==0 && strcmpi(aux.apellido, capitan.apellido)==0)
+            for(int i = 0; i < cant; i++)
             {
-                fseek(arch, -(long)sizeof(Capitan), SEEK_CUR);
-                fwrite(&capitan,sizeof(Capitan), 1, arch);
+                if(barquitos[i].capitan.tesoroEncontrado == 1 && strcmp(aux.nombre, barquitos[i].capitan.nombre)==0 && strcmp(aux.apellido, barquitos[i].capitan.apellido)==0)
+                {
+                    aux.tesoroEncontrado = 1;
+                    fseek(arch, -(long)sizeof(Capitan), SEEK_CUR);
+                    fwrite(&aux, sizeof(Capitan), 1, arch);
+                    fseek(arch, 0, SEEK_CUR);
+                }
             }
         }
     }
-    fclose(arch);
 }
+
